@@ -110,20 +110,7 @@ Filter Order & Roll-off
 Q Factor (Resonance)
 Frequency Response Analysis
 Power Spectral Density (PSD)
-🧩 System Architecture
-Audio Input
-   ↓
-Split into 4 Paths
-   ├── Original
-   ├── LPF Chain
-   ├── BPF Chain (HPF + LPF)
-   └── HPF Chain
-   ↓
-Gain Control
-   ↓
-Mixer
-   ↓
-Output + Visualization
+
 🎯 Applications
 🎓 DSP Laboratory Experiments
 🎧 Audio Signal Analysis
