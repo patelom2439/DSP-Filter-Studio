@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSP Music Filter Studio v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080c12; --panel:#0e1520; --panel2:#141d2c; --border:#1a2540;
+  --text:#c8d8f0; --muted:#3a5070; --muted2:#5a7898;
+  --orig:#4fa3e8; --lpf:#3fb950; --bpf:#f0883e; --hpf:#f85149;
+  --mix:#e3b341; --purple:#bc8cff; --teal:#4ec9b0;
+  --radius:8px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:14px;
+  background-image:radial-gradient(ellipse at 20% 20%,rgba(79,163,232,.04) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 80%,rgba(63,185,80,.03) 0%,transparent 50%)}
+.app{width:100%;max-width:1300px;display:flex;flex-direction:column;gap:9px}
+
+/* ── Credit Bar ── */
+.credit-bar{
+  display:grid;
+  grid-template-columns:auto 1px 1fr 1px auto;
+  align-items:center;gap:16px;padding:12px 20px;
+  background:linear-gradient(135deg,#0a1220 0%,#0e182a 50%,#0a1220 100%);
+  border:1px solid #1a2e50;border-radius:var(--radius);
+  position:relative;overflow:hidden;
+}
+.credit-bar::before{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(79,163,232,.025) 40px,rgba(79,163,232,.025) 41px);
+  pointer-events:none;}
+.credit-logo{width:50px;height:50px;flex-shrink:0;}
+.credit-divider{width:1px;height:42px;background:linear-gradient(to bottom,transparent,#2a4060,transparent);}
+.credit-left{display:flex;align-items:center;gap:14px;}
+.credit-text{display:flex;flex-direction:column;gap:3px;}
+.credit-college{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a8aaf;}
+.credit-name{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:2px;color:#c8d8f0;}
+.credit-id{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;
+  color:var(--orig);background:rgba(79,163,232,.1);padding:2px 8px;border-radius:3px;
+  border:1px solid rgba(79,163,232,.2);display:inline-block;width:fit-content;}
+
+/* Center project title */
+.credit-center{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  text-align:center;
+}
+.credit-project-title{
+  font-family:'Share Tech Mono',monospace;font-size:18px;letter-spacing:5px;
+  color:var(--orig);text-shadow:0 0 20px rgba(79,163,232,.4);
+  white-space:nowrap;
+}
+.credit-project-sub{
+  font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;
+  color:var(--muted2);
+}
+.credit-project-badge{
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;
+  color:var(--teal);background:rgba(78,201,176,.08);padding:2px 10px;border-radius:3px;
+  border:1px solid rgba(78,201,176,.2);
+}
+
+.credit-right{font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:2px;color:var(--muted);text-align:right;line-height:1.8;}
+
+/* ── Header ── */
+.hdr{display:flex;align-items:center;gap:14px;padding:10px 16px;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius)}
+.logo{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:4px;color:var(--orig);white-space:nowrap}
+.track-name{flex:1;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted2);
+  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 10px}
+.hdr-btn{background:var(--panel2);border:1px solid var(--border);color:var(--muted2);
+  padding:6px 13px;border-radius:5px;font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:2px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.hdr-btn:hover{border-color:var(--orig);color:var(--orig)}
+
+/* ── Body ── */
+.body{display:grid;grid-template-columns:300px 1fr;gap:9px;align-items:start}
+
+/* ── Controls ── */
+.ctrl-panel{background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:13px}
+.section-hdr{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;
+  color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:5px;margin-bottom:4px}
+
+/* ── Filter Type Buttons ── */
+.ftype-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.ftype-btn{
+  padding:7px 5px;border-radius:5px;border:1px solid var(--border);
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:0.5px;
+  cursor:pointer;background:var(--panel2);color:var(--muted2);
+  transition:all .18s;text-align:center;line-height:1.3;
+}
+.ftype-btn:hover{border-color:var(--teal);color:var(--teal);}
+.ftype-btn.active{
+  background:rgba(78,201,176,.12);border-color:var(--teal);color:var(--teal);
+  box-shadow:0 0 8px rgba(78,201,176,.2);
+}
+.ftype-name{display:block;font-size:11px;font-weight:700;font-family:'Rajdhani',sans-serif;}
+.ftype-sub{display:block;font-size:7.5px;letter-spacing:0.5px;color:var(--muted);margin-top:1px;}
+.ftype-btn.active .ftype-sub{color:rgba(78,201,176,.7);}
+
+/* ── Filter Order — text input only ── */
+.order-wrap{display:flex;flex-direction:column;gap:6px;}
+.order-custom-row{display:flex;align-items:center;gap:8px;}
+.order-custom-row label{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted2);white-space:nowrap;}
+.order-input{
+  flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  font-family:'Share Tech Mono',monospace;font-size:13px;padding:6px 10px;border-radius:4px;
+  outline:none;
+}
+.order-input:focus{border-color:var(--purple);}
+.order-apply-btn{
+  padding:6px 12px;border-radius:4px;border:1px solid rgba(188,140,255,.4);
+  background:rgba(188,140,255,.1);color:var(--purple);
+  font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.order-apply-btn:hover{background:rgba(188,140,255,.2);}
+.order-hint{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);
+  letter-spacing:1px;padding:2px 0;}
+.order-info{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted2);
+  text-align:center;letter-spacing:1px;padding:3px 0;}
+
+/* ── Sliders ── */
+.ctrl-row{display:flex;flex-direction:column;gap:3px}
+.ctrl-top{display:flex;justify-content:space-between;align-items:baseline}
+.ctrl-label{font-size:12px;font-weight:600;letter-spacing:1px}
+.ctrl-val{font-family:'Share Tech Mono',monospace;font-size:11px}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;appearance:none;
+  background:var(--border);border-radius:2px;cursor:pointer;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;
+  border-radius:50%;cursor:grab;transition:transform .1s}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.2);cursor:grabbing}
+.lpf-clr{color:var(--lpf)} .bpf-clr{color:var(--bpf)} .hpf-clr{color:var(--hpf)}
+.orig-clr{color:var(--orig)} .mix-clr{color:var(--mix)} .q-clr{color:var(--teal)}
+input.lpf-range::-webkit-slider-thumb{background:var(--lpf)}
+input.bpf-range::-webkit-slider-thumb{background:var(--bpf)}
+input.hpf-range::-webkit-slider-thumb{background:var(--hpf)}
+input.orig-range::-webkit-slider-thumb{background:var(--orig)}
+input.mix-range::-webkit-slider-thumb{background:var(--mix)}
+input.q-range::-webkit-slider-thumb{background:var(--teal)}
+
+/* Freq slider ticks hint */
+.freq-ticks{display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;
+  font-size:7px;color:var(--muted);margin-top:2px;}
+
+/* BPF warning */
+.bpf-warn{font-family:'Share Tech Mono',monospace;font-size:8px;color:#f85149;
+  display:none;margin-top:2px;}
+
+/* vis toggles */
+.vis-row{display:flex;flex-wrap:wrap;gap:5px}
+.vis-btn{padding:4px 9px;border-radius:4px;border:1px solid;font-size:11px;font-weight:600;
+  cursor:pointer;background:transparent;letter-spacing:1px;transition:all .15s;opacity:0.4}
+.vis-btn.on{opacity:1}
+.reset-btn{width:100%;padding:7px 14px;background:transparent;
+  border:1px solid var(--border);color:var(--muted2);border-radius:5px;
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;
+  cursor:pointer;transition:all .15s;text-align:center}
+.reset-btn:hover{border-color:#f85149;color:#f85149;background:rgba(248,81,73,.06)}
+
+/* ── Plots ── */
+.plots-col{display:flex;flex-direction:column;gap:9px}
+.plot-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
+.plot-title{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:var(--muted2);margin-bottom:8px}
+canvas.plot{display:block;width:100%;border-radius:4px;background:#060910}
+.plots-2col{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;align-items:center}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:1px}
+.leg-dot{width:10px;height:3px;border-radius:2px}
+
+/* Fs/2 badge — shown in freq graph card */
+.fs-badge{
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;
+  color:var(--purple);background:rgba(188,140,255,.08);
+  padding:2px 8px;border-radius:3px;border:1px solid rgba(188,140,255,.2);
+  margin-left:8px;
+}
+
+/* Overview */
+.wave-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
+#overviewCanvas{display:block;width:100%;height:60px;border-radius:4px;background:#060910;cursor:pointer}
+.progress-row{display:flex;align-items:center;gap:12px;margin-top:7px}
+.prog-track{flex:1;height:3px;background:var(--border);border-radius:2px;cursor:pointer;position:relative}
+.prog-fill{height:100%;background:var(--orig);border-radius:2px;width:0%;pointer-events:none}
+.prog-handle{position:absolute;top:50%;width:12px;height:12px;background:#fff;border-radius:50%;
+  transform:translate(-50%,-50%);left:0;cursor:grab;opacity:0;transition:opacity .15s}
+.prog-track:hover .prog-handle{opacity:1}
+.time-lbl{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted2);
+  white-space:nowrap;min-width:95px;text-align:right}
+
+/* Transport */
+.transport{display:flex;align-items:center;justify-content:center;gap:9px;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:11px 16px}
+.t-btn{background:var(--panel2);border:1px solid var(--border);color:var(--muted2);
+  padding:7px 16px;border-radius:5px;font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:2px;cursor:pointer;transition:all .15s}
+.t-btn:hover{background:#1a2540;color:var(--text)}
+#playBtn{min-width:100px;color:var(--lpf);border-color:#1a4020}
+#playBtn.playing{color:var(--bpf);border-color:#5a2a0a}
+.t-stop{color:var(--hpf) !important}
+.t-stop:hover{border-color:var(--hpf) !important}
+.status{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);margin-left:8px}
+.drop-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:999;
+  align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;
+  font-size:18px;letter-spacing:6px;color:var(--orig);pointer-events:none}
+.drop-ov.show{display:flex}
+
+/* Performance warning */
+.perf-warn{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--mix);
+  text-align:center;padding:3px 0;display:none;}
+.perf-warn.show{display:block;}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="drop-ov" id="dropOv">DROP AUDIO FILE HERE</div>
+
+<!-- Credit Bar — 5-column grid: left-info | divider | CENTER TITLE | divider | right-info -->
+<div class="credit-bar">
+  <!-- Left: logo + name/id -->
+  <div class="credit-left">
+    <svg class="credit-logo" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="26" cy="26" r="24" stroke="#2a5080" stroke-width="1.5"/>
+      <circle cx="26" cy="26" r="21" stroke="#1e3a5c" stroke-width="0.5"/>
+      <g stroke="#3a7ab0" stroke-width="1.2" opacity="0.7">
+        <line x1="26" y1="2" x2="26" y2="7"/><line x1="26" y1="45" x2="26" y2="50"/>
+        <line x1="2" y1="26" x2="7" y2="26"/><line x1="45" y1="26" x2="50" y2="26"/>
+        <line x1="8.1" y1="8.1" x2="11.6" y2="11.6"/><line x1="40.4" y1="40.4" x2="43.9" y2="43.9"/>
+        <line x1="43.9" y1="8.1" x2="40.4" y2="11.6"/><line x1="8.1" y1="43.9" x2="11.6" y2="40.4"/>
+      </g>
+      <g stroke="#4fa3e8" stroke-width="0.8" opacity="0.5">
+        <line x1="16" y1="26" x2="36" y2="26"/><line x1="26" y1="16" x2="26" y2="36"/>
+        <line x1="20" y1="20" x2="32" y2="32"/><line x1="32" y1="20" x2="20" y2="32"/>
+      </g>
+      <circle cx="26" cy="26" r="6" fill="none" stroke="#4fa3e8" stroke-width="1.5"/>
+      <circle cx="26" cy="26" r="2.5" fill="#4fa3e8" opacity="0.8"/>
+      <circle cx="16" cy="26" r="1.5" fill="#3fb950" opacity="0.8"/>
+      <circle cx="36" cy="26" r="1.5" fill="#3fb950" opacity="0.8"/>
+      <circle cx="26" cy="16" r="1.5" fill="#f0883e" opacity="0.8"/>
+      <circle cx="26" cy="36" r="1.5" fill="#f85149" opacity="0.8"/>
+      <text x="26" y="29.5" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="5.5" fill="#c8d8f0" opacity="0.9" letter-spacing="0.5">EL</text>
+    </svg>
+    <div class="credit-text">
+      <span class="credit-college">ELECTRONICS ENGINEERING DEPT</span>
+      <span class="credit-name">NAME : PATEL OM SEJALKUMAR <br>PROJECT GUIDE : PROF. TANMAY D. PAWAR</span>
+      <span class="credit-id">ID : 23EL055</span>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div class="credit-divider"></div>
+
+  <!-- Center: Project Title -->
+  <div class="credit-center">
+    <span class="credit-project-title">DSP FILTER STUDIO</span>
+    <span class="credit-project-badge">SIGNAL PROCESSING LAB · v2.0</span>
+    <span class="credit-project-sub">DIGITAL SIGNAL PROCESSING — LPF / BPF / HPF</span>
+  </div>
+
+  <!-- Divider -->
+  <div class="credit-divider"></div>
+
+  <!-- Right -->
+  <div class="credit-right"><br><span style="color:var(--orig)">AY 2025–26</span><br><span style="color:var(--teal);font-size:8px"></span></div>
+</div>
+
+<!-- Header -->
+<div class="hdr">
+  <span class="logo">MUSIC FILE(MP3/WAV)</span>
+  <span class="track-name" id="trackName">— DRAG &amp; DROP AN AUDIO FILE, OR CLICK LOAD —</span>
+  <button class="hdr-btn" style="color:var(--muted)" onclick="loadDemo()">⟳ DEMO</button>
+  <button class="hdr-btn" onclick="document.getElementById('fi').click()">📂 LOAD FILE</button>
+  <input type="file" id="fi" accept="audio/*" style="display:none" onchange="handleFile(this.files[0])">
+</div>
+
+<!-- Body -->
+<div class="body">
+  <!-- Left: Controls -->
+  <div class="ctrl-panel">
+
+    <!-- FILTER TYPE -->
+    <div>
+      <div class="section-hdr">— FILTER TYPE —</div>
+      <div class="ftype-grid">
+        <button class="ftype-btn active" id="ft-butter" onclick="changeFilterType('butter')">
+          <span class="ftype-name">Butterworth</span>
+          <span class="ftype-sub">Maximally flat passband</span>
+        </button>
+        <button class="ftype-btn" id="ft-cheby1" onclick="changeFilterType('cheby1')">
+          <span class="ftype-name">Chebyshev I</span>
+          <span class="ftype-sub">Ripple in passband</span>
+        </button>
+        <button class="ftype-btn" id="ft-cheby2" onclick="changeFilterType('cheby2')">
+          <span class="ftype-name">Chebyshev II</span>
+          <span class="ftype-sub">Ripple in stopband</span>
+        </button>
+        <button class="ftype-btn" id="ft-bessel" onclick="changeFilterType('bessel')">
+          <span class="ftype-name">Bessel</span>
+          <span class="ftype-sub">Linear phase delay</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- FILTER ORDER — input + apply only (no preset buttons) -->
+    <div>
+      <div class="section-hdr">— FILTER ORDER —</div>
+      <div class="order-wrap">
+        <div class="order-custom-row">
+          <label>ORDER:</label>
+          <input type="number" class="order-input" id="orderInput" min="1" max="1000" value="2" placeholder="1–1000"
+            onkeydown="if(event.key==='Enter')applyCustomOrder()">
+          <button class="order-apply-btn" onclick="applyCustomOrder()">APPLY</button>
+        </div>
+        <div class="order-hint">Range: 1 – 1000 · Press Enter or APPLY</div>
+        <div class="perf-warn" id="perfWarn">⚠ HIGH ORDER — Graph uses ideal approximation</div>
+        <div class="order-info" id="orderInfo">Order: 2 · Butterworth · Q = 0.707</div>
+      </div>
+    </div>
+
+    <!-- Q FACTOR -->
+    <div>
+      <div class="section-hdr">— Q FACTOR (MANUAL OVERRIDE) —</div>
+      <div class="ctrl-row">
+        <div class="ctrl-top">
+          <span class="ctrl-label q-clr">Q Factor</span>
+          <span class="ctrl-val q-clr" id="vQ">0.707</span>
+        </div>
+        <input type="range" class="q-range" id="sQ" min="0.1" max="20" step="0.001" value="0.707"
+          oninput="onQSlider(this)">
+        <div style="display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">
+          <span>0.1 (overdamped)</span><span>20 (resonant)</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:5px">
+        <button onclick="setQPreset(0.5)" style="flex:1;padding:3px;border:1px solid var(--border);background:var(--panel2);color:var(--muted2);font-family:'Share Tech Mono',monospace;font-size:8px;border-radius:3px;cursor:pointer;">0.5</button>
+        <button onclick="setQPreset(0.7071)" style="flex:1;padding:3px;border:1px solid var(--border);background:var(--panel2);color:var(--muted2);font-family:'Share Tech Mono',monospace;font-size:8px;border-radius:3px;cursor:pointer;">1/√2</button>
+        <button onclick="setQPreset(1.0)" style="flex:1;padding:3px;border:1px solid var(--border);background:var(--panel2);color:var(--muted2);font-family:'Share Tech Mono',monospace;font-size:8px;border-radius:3px;cursor:pointer;">1.0</button>
+        <button onclick="setQPreset(2.0)" style="flex:1;padding:3px;border:1px solid var(--border);background:var(--panel2);color:var(--muted2);font-family:'Share Tech Mono',monospace;font-size:8px;border-radius:3px;cursor:pointer;">2.0</button>
+        <button onclick="setQPreset(10.0)" style="flex:1;padding:3px;border:1px solid var(--border);background:var(--panel2);color:var(--muted2);font-family:'Share Tech Mono',monospace;font-size:8px;border-radius:3px;cursor:pointer;">10.0</button>
+      </div>
+    </div>
+
+    <!-- CUTOFF FREQUENCIES — logarithmic sliders (0–1 internally mapped to 20–20000 Hz log) -->
+    <div>
+      <div class="section-hdr">— CUTOFF FREQUENCIES —</div>
+      <div class="ctrl-row">
+        <div class="ctrl-top">
+          <span class="ctrl-label lpf-clr">LPF Cutoff</span>
+          <span class="ctrl-val lpf-clr" id="vLpf">600 Hz</span>
+        </div>
+        <!-- slider is 0–1000 internally; JS maps to log scale 20–20000 Hz -->
+        <input type="range" class="lpf-range" id="sLpf" min="0" max="1000" step="1" value="506"
+          oninput="onSlider('lpf',this)">
+        <div class="freq-ticks"><span>20Hz</span><span>200Hz</span><span>2kHz</span><span>20kHz</span></div>
+      </div>
+      <div style="height:6px"></div>
+      <div class="ctrl-row">
+        <div class="ctrl-top">
+          <span class="ctrl-label bpf-clr">BPF Low Edge</span>
+          <span class="ctrl-val bpf-clr" id="vBpfLo">800 Hz</span>
+        </div>
+        <input type="range" class="bpf-range" id="sBpfLo" min="0" max="1000" step="1" value="532"
+          oninput="onSlider('bpflo',this)">
+        <div class="freq-ticks"><span>20Hz</span><span>200Hz</span><span>2kHz</span><span>20kHz</span></div>
+      </div>
+      <div class="ctrl-row" style="margin-top:5px">
+        <div class="ctrl-top">
+          <span class="ctrl-label bpf-clr">BPF High Edge</span>
+          <span class="ctrl-val bpf-clr" id="vBpfHi">2400 Hz</span>
+        </div>
+        <input type="range" class="bpf-range" id="sBpfHi" min="0" max="1000" step="1" value="641"
+          oninput="onSlider('bpfhi',this)">
+        <div class="freq-ticks"><span>20Hz</span><span>200Hz</span><span>2kHz</span><span>20kHz</span></div>
+      </div>
+      <div class="bpf-warn" id="bpfWarn">⚠ BPF High must be &gt; BPF Low!</div>
+      <div style="height:6px"></div>
+      <div class="ctrl-row">
+        <div class="ctrl-top">
+          <span class="ctrl-label hpf-clr">HPF Cutoff</span>
+          <span class="ctrl-val hpf-clr" id="vHpf">3500 Hz</span>
+        </div>
+        <input type="range" class="hpf-range" id="sHpf" min="0" max="1000" step="1" value="682"
+          oninput="onSlider('hpf',this)">
+        <div class="freq-ticks"><span>20Hz</span><span>200Hz</span><span>2kHz</span><span>20kHz</span></div>
+      </div>
+    </div>
+
+    <!-- CHANNEL GAINS -->
+    <div>
+      <div class="section-hdr">— CHANNEL GAINS —</div>
+      <div class="ctrl-row">
+        <div class="ctrl-top"><span class="ctrl-label orig-clr">Original</span><span class="ctrl-val orig-clr" id="vGOrig">0.0 dB</span></div>
+        <input type="range" class="orig-range" id="sGOrig" min="-30" max="6" step="0.5" value="0" oninput="onGain('orig',this)">
+      </div>
+      <div class="ctrl-row" style="margin-top:5px">
+        <div class="ctrl-top"><span class="ctrl-label lpf-clr">LPF Out</span><span class="ctrl-val lpf-clr" id="vGLpf">0.0 dB</span></div>
+        <input type="range" class="lpf-range" id="sGLpf" min="-30" max="6" step="0.5" value="0" oninput="onGain('lpf',this)">
+      </div>
+      <div class="ctrl-row" style="margin-top:5px">
+        <div class="ctrl-top"><span class="ctrl-label bpf-clr">BPF Out</span><span class="ctrl-val bpf-clr" id="vGBpf">0.0 dB</span></div>
+        <input type="range" class="bpf-range" id="sGBpf" min="-30" max="6" step="0.5" value="0" oninput="onGain('bpf',this)">
+      </div>
+      <div class="ctrl-row" style="margin-top:5px">
+        <div class="ctrl-top"><span class="ctrl-label hpf-clr">HPF Out</span><span class="ctrl-val hpf-clr" id="vGHpf">0.0 dB</span></div>
+        <input type="range" class="hpf-range" id="sGHpf" min="-30" max="6" step="0.5" value="0" oninput="onGain('hpf',this)">
+      </div>
+    </div>
+
+    <!-- SHOW/HIDE -->
+    <div>
+      <div class="section-hdr">— SHOW / HIDE SIGNALS —</div>
+      <div class="vis-row">
+        <button class="vis-btn on" id="vb-orig" style="color:var(--orig);border-color:var(--orig)" onclick="toggleVis('orig',this)">ORIG</button>
+        <button class="vis-btn on" id="vb-lpf" style="color:var(--lpf);border-color:var(--lpf)" onclick="toggleVis('lpf',this)">LPF</button>
+        <button class="vis-btn on" id="vb-bpf" style="color:var(--bpf);border-color:var(--bpf)" onclick="toggleVis('bpf',this)">BPF</button>
+        <button class="vis-btn on" id="vb-hpf" style="color:var(--hpf);border-color:var(--hpf)" onclick="toggleVis('hpf',this)">HPF</button>
+        <button class="vis-btn on" id="vb-mix" style="color:var(--mix);border-color:var(--mix)" onclick="toggleVis('mix',this)">MIX</button>
+      </div>
+    </div>
+
+    <!-- RESET -->
+    <div>
+      <button class="reset-btn" onclick="resetAll()">↺ RESET ALL TO DEFAULTS</button>
+    </div>
+
+    <!-- INFO -->
+    <div>
+      <div class="section-hdr">— INFO —</div>
+      <div id="infoBox" style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted2);line-height:1.8">
+        Fs: — &nbsp;|&nbsp; Duration: —<br>LPF &lt; 600 Hz<br>BPF 800 – 2400 Hz<br>HPF &gt; 3500 Hz
+      </div>
+    </div>
+
+  </div><!-- /ctrl-panel -->
+
+  <!-- Right: Plots -->
+  <div class="plots-col">
+    <div class="plot-card">
+      <!-- ★ Title row now includes dynamic Fs/2 badge -->
+      <div style="display:flex;align-items:center;margin-bottom:8px">
+        <div class="plot-title" style="margin-bottom:0">FREQUENCY RESPONSE — LPF / BPF / HPF  (ideal mathematical model · log scale)</div>
+        <span class="fs-badge" id="fsBadge">Fs/2 = 22.05 kHz</span>
+      </div>
+      <canvas class="plot" id="freqCanvas" height="210"></canvas>
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:var(--lpf)"></div><span class="lpf-clr">LPF</span></div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--bpf)"></div><span class="bpf-clr">BPF</span></div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--hpf)"></div><span class="hpf-clr">HPF</span></div>
+        <div class="leg-item"><div class="leg-dot" style="background:#333;border:1px dashed #555"></div><span style="color:#555">-3 dB</span></div>
+        <div class="leg-item" style="margin-left:auto">
+          <span id="legendLabel" style="color:var(--teal);font-family:'Share Tech Mono',monospace;font-size:9px">ORDER: 2 · BUTTERWORTH</span>
+        </div>
+      </div>
+    </div>
+    <div class="plots-2col">
+      <div class="plot-card">
+        <div class="plot-title">WAVEFORM — TIME DOMAIN (live)</div>
+        <canvas class="plot" id="waveCanvas" height="155"></canvas>
+      </div>
+      <div class="plot-card">
+        <div class="plot-title">MAGNITUDE SPECTRUM — PSD (live)</div>
+        <canvas class="plot" id="specCanvas" height="155"></canvas>
+      </div>
+    </div>
+  </div>
+</div><!-- /body -->
+
+<!-- Overview -->
+<div class="wave-card">
+  <div class="plot-title" style="font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;color:var(--muted2);margin-bottom:5px">OVERVIEW — FULL TRACK</div>
+  <canvas id="overviewCanvas"></canvas>
+  <div class="progress-row">
+    <div class="prog-track" id="progTrack" onmousedown="progDown(event)">
+      <div class="prog-fill" id="progFill"></div>
+      <div class="prog-handle" id="progHandle"></div>
+    </div>
+    <span class="time-lbl" id="timeLbl">0:00 / 0:00</span>
+  </div>
+</div>
+
+<!-- Transport -->
+<div class="transport">
+  <button class="t-btn" onclick="skip(-5)">◀◀ -5s</button>
+  <button class="t-btn" id="playBtn" onclick="togglePlay()">▶ PLAY</button>
+  <button class="t-btn t-stop" onclick="stopAudio()">■ STOP</button>
+  <button class="t-btn" onclick="skip(5)">+5s ▶▶</button>
+  <span class="status" id="statusLbl">READY — LOAD A FILE OR USE DEMO</span>
+</div>
+
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+//  LOG-SCALE FREQUENCY HELPERS
+//  Slider range is 0–1000 (integer), maps to 20–20000 Hz logarithmically
+// ══════════════════════════════════════════════════════════════════════
+const FMIN = 20, FMAX = 20000;
+function sliderToHz(v) {
+  return Math.round(FMIN * Math.pow(FMAX / FMIN, v / 1000));
+}
+function hzToSlider(hz) {
+  return Math.round(Math.log(hz / FMIN) / Math.log(FMAX / FMIN) * 1000);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  ★ NEW: DYNAMIC Fs/2 HELPER
+//  Returns the Nyquist frequency for the frequency response graph.
+//  - If audio is loaded: uses actual audioBuf.sampleRate / 2
+//  - Otherwise: defaults to 22050 Hz (standard 44.1 kHz assumption)
+//  This makes the X-axis of the freq response graph always show
+//  the correct range for the loaded file (e.g. 0–25 kHz for 50 kHz Fs).
+// ══════════════════════════════════════════════════════════════════════
+function getNyquist() {
+  if (audioBuf) return audioBuf.sampleRate / 2;
+  if (ac) return ac.sampleRate / 2;
+  return 22050; // default before any file loaded
+}
+
+// ★ Update the Fs/2 badge in the graph header
+function updateFsBadge() {
+  const nyq = getNyquist();
+  const fs  = nyq * 2;
+  const badge = document.getElementById('fsBadge');
+  // Format nicely: show kHz if >= 1000
+  const nyqStr = nyq >= 1000 ? (nyq/1000).toFixed(nyq % 1000 === 0 ? 0 : nyq >= 10000 ? 1 : 2) + ' kHz' : nyq + ' Hz';
+  const fsStr  = fs  >= 1000 ? (fs /1000).toFixed(fs  % 1000 === 0 ? 0 : fs  >= 10000 ? 1 : 2) + ' kHz' : fs  + ' Hz';
+  badge.textContent = `Fs = ${fsStr}  ·  Fs/2 = ${nyqStr}`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════════════
+let ac=null, audioBuf=null, srcNode=null;
+let gOrig,gLPF,gBPF,gHPF;
+let anlOrig,anlLPF,anlBPF,anlHPF,anlMix;
+let lpfInput,bpfInput,hpfInput;
+
+const MAX_NODES = 4;
+let lpfNodes=[], bpfHpNodes=[], bpfLpNodes=[], hpfNodes=[];
+
+let filterOrder = 2;
+let filterType  = 'butter';
+let globalQ     = 0.7071;
+
+let isPlaying=false, startT=0, startOff=0;
+let rafId=null, waveData=null;
+let vis={orig:true,lpf:true,bpf:true,hpf:true,mix:true};
+let P={lpf:600, bpfLo:800, bpfHi:2400, hpf:3500, gOrig:1, gLpf:1, gBpf:1, gHpf:1};
+
+// ── Throttle / debounce for live graphs ──
+let _freqRafPending = false;
+let _filterChangeTimer = null;
+
+function scheduleFreqDraw() {
+  if (_freqRafPending) return;
+  _freqRafPending = true;
+  requestAnimationFrame(() => { _freqRafPending = false; drawFreqResponse(); });
+}
+
+function scheduleFilterTypeChange() {
+  clearTimeout(_filterChangeTimer);
+  _filterChangeTimer = setTimeout(() => {
+    if (ac) { applyNodeParams(realStageCount()); }
+    scheduleFreqDraw();
+  }, 80);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  IDEAL FREQUENCY RESPONSE MATH
+// ══════════════════════════════════════════════════════════════════════
+function butterLP(w, n) {
+  return 1.0 / (1.0 + Math.pow(w, 2*n));
+}
+function cheby1LP(w, n) {
+  const eps = 1.0;
+  let T;
+  if (w <= 1.0) T = Math.cos(n * Math.acos(Math.max(-1,Math.min(1,w))));
+  else           T = Math.cosh(n * Math.acosh(w));
+  return 1.0 / (1.0 + eps*eps * T*T);
+}
+function cheby2LP(w, n) {
+  if (w < 1e-9) return 0;
+  const wn = 1.0/w;
+  const eps = 1.0;
+  let T;
+  if (wn <= 1.0) T = Math.cos(n * Math.acos(Math.max(-1,Math.min(1,wn))));
+  else            T = Math.cosh(n * Math.acosh(wn));
+  return 1.0 - 1.0/(1.0 + eps*eps*T*T);
+}
+function besselLP(w, n) {
+  const scale = Math.pow(Math.pow(2, 1.0/n) - 1, 0.5) * 0.8 + 0.2;
+  return butterLP(w / scale, n) * (1.0 - 0.12*Math.sin(Math.PI*w));
+}
+function idealLPmag(f, fc, n, type) {
+  if (fc <= 0) return 0;
+  const w = f / fc;
+  let m2;
+  switch(type) {
+    case 'cheby1': m2 = cheby1LP(w, n); break;
+    case 'cheby2': m2 = cheby2LP(w, n); break;
+    case 'bessel': m2 = besselLP(w, n); break;
+    default:       m2 = butterLP(w, n);
+  }
+  return Math.sqrt(Math.max(0, m2));
+}
+function idealHPmag(f, fc, n, type) {
+  if (f <= 0 || fc <= 0) return 0;
+  return idealLPmag(fc, f, n, type);
+}
+function idealBPmag(f, fcLo, fcHi, n, type) {
+  if (fcLo >= fcHi) return 0;
+  return idealLPmag(f, fcHi, n, type) * idealHPmag(f, fcLo, n, type);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  AUDIO INIT
+// ══════════════════════════════════════════════════════════════════════
+function ensureAC() {
+  if (ac) return;
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  gOrig=ac.createGain(); gOrig.gain.value=P.gOrig;
+  gLPF =ac.createGain(); gLPF.gain.value =P.gLpf;
+  gBPF =ac.createGain(); gBPF.gain.value =P.gBpf;
+  gHPF =ac.createGain(); gHPF.gain.value =P.gHpf;
+  function mkA(s){const a=ac.createAnalyser();a.fftSize=2048;a.smoothingTimeConstant=s;return a;}
+  anlOrig=mkA(0.7);anlLPF=mkA(0.7);anlBPF=mkA(0.7);anlHPF=mkA(0.7);anlMix=mkA(0.85);
+  lpfInput=ac.createGain(); bpfInput=ac.createGain(); hpfInput=ac.createGain();
+  for (let i=0;i<MAX_NODES;i++) {
+    const lf=ac.createBiquadFilter();lf.type='lowpass'; lpfNodes.push(lf);
+    const bh=ac.createBiquadFilter();bh.type='highpass';bpfHpNodes.push(bh);
+    const bl=ac.createBiquadFilter();bl.type='lowpass'; bpfLpNodes.push(bl);
+    const hf=ac.createBiquadFilter();hf.type='highpass';hpfNodes.push(hf);
+  }
+  buildChains();
+}
+
+function realStageCount() {
+  return Math.max(1, Math.min(MAX_NODES, Math.ceil(filterOrder / 2)));
+}
+
+function buildChains() {
+  if (!ac) return;
+  const n = realStageCount();
+  const all=[lpfInput,bpfInput,hpfInput,...lpfNodes,...bpfHpNodes,...bpfLpNodes,...hpfNodes,anlLPF,anlBPF,anlHPF];
+  all.forEach(nd=>{try{nd.disconnect();}catch(e){}});
+  applyNodeParams(n);
+  lpfInput.connect(lpfNodes[0]);
+  for(let i=1;i<n;i++) lpfNodes[i-1].connect(lpfNodes[i]);
+  lpfNodes[n-1].connect(anlLPF); anlLPF.connect(gLPF);
+  bpfInput.connect(bpfHpNodes[0]);
+  for(let i=1;i<n;i++) bpfHpNodes[i-1].connect(bpfHpNodes[i]);
+  bpfHpNodes[n-1].connect(bpfLpNodes[0]);
+  for(let i=1;i<n;i++) bpfLpNodes[i-1].connect(bpfLpNodes[i]);
+  bpfLpNodes[n-1].connect(anlBPF); anlBPF.connect(gBPF);
+  hpfInput.connect(hpfNodes[0]);
+  for(let i=1;i<n;i++) hpfNodes[i-1].connect(hpfNodes[i]);
+  hpfNodes[n-1].connect(anlHPF); anlHPF.connect(gHPF);
+  [gLPF,gBPF,gHPF,gOrig,anlMix].forEach(n=>{try{n.disconnect();}catch(e){}});
+  gOrig.connect(anlMix); gLPF.connect(anlMix); gBPF.connect(anlMix);
+  gHPF.connect(anlMix); anlMix.connect(ac.destination);
+}
+
+function applyNodeParams(n) {
+  if (!ac) return;
+  const nyq = ac.sampleRate/2;
+  const clamp = v => Math.min(Math.max(v,20),nyq-1);
+  const lpf=clamp(P.lpf), blo=clamp(P.bpfLo), bhi=clamp(P.bpfHi), hpf=clamp(P.hpf);
+  const t = ac.currentTime+0.02;
+  const stages = n || realStageCount();
+  for (let i=0;i<stages;i++) {
+    lpfNodes[i].frequency.linearRampToValueAtTime(lpf,t);   lpfNodes[i].Q.linearRampToValueAtTime(globalQ,t);
+    bpfHpNodes[i].frequency.linearRampToValueAtTime(blo,t); bpfHpNodes[i].Q.linearRampToValueAtTime(globalQ,t);
+    bpfLpNodes[i].frequency.linearRampToValueAtTime(bhi,t); bpfLpNodes[i].Q.linearRampToValueAtTime(globalQ,t);
+    hpfNodes[i].frequency.linearRampToValueAtTime(hpf,t);   hpfNodes[i].Q.linearRampToValueAtTime(globalQ,t);
+  }
+  gOrig.gain.linearRampToValueAtTime(P.gOrig,t);
+  gLPF.gain.linearRampToValueAtTime(P.gLpf,t);
+  gBPF.gain.linearRampToValueAtTime(P.gBpf,t);
+  gHPF.gain.linearRampToValueAtTime(P.gHpf,t);
+}
+
+function connectSrc(src) {
+  src.connect(anlOrig); anlOrig.connect(gOrig);
+  src.connect(lpfInput); src.connect(bpfInput); src.connect(hpfInput);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  FILTER TYPE CHANGE
+// ══════════════════════════════════════════════════════════════════════
+function changeFilterType(type) {
+  filterType = type;
+  ['butter','cheby1','cheby2','bessel'].forEach(t => {
+    document.getElementById('ft-'+t).classList.toggle('active', t===type);
+  });
+  updateOrderInfo();
+  scheduleFilterTypeChange();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  ORDER CHANGE
+// ══════════════════════════════════════════════════════════════════════
+function applyCustomOrder() {
+  const v = parseInt(document.getElementById('orderInput').value);
+  if (isNaN(v)||v<1||v>1000) { document.getElementById('orderInput').style.borderColor='#f85149'; return; }
+  document.getElementById('orderInput').style.borderColor='';
+  filterOrder = v;
+  onOrderChanged();
+}
+
+function onOrderChanged() {
+  const warn = document.getElementById('perfWarn');
+  warn.classList.toggle('show', filterOrder > MAX_NODES*2);
+  updateOrderInfo();
+  if (!ac) { scheduleFreqDraw(); return; }
+  const wasPlaying=isPlaying, curT=getCurT();
+  if (isPlaying) { if(srcNode){try{srcNode.stop()}catch(e){}srcNode.disconnect();srcNode=null;} isPlaying=false; }
+  buildChains();
+  if (wasPlaying && audioBuf) playAudio(curT);
+  scheduleFreqDraw();
+}
+
+function updateOrderInfo() {
+  const typeLabel = {butter:'Butterworth',cheby1:'Chebyshev I',cheby2:'Chebyshev II',bessel:'Bessel'}[filterType];
+  const audioOrder = Math.min(filterOrder, MAX_NODES*2);
+  const graphNote  = filterOrder > MAX_NODES*2 ? ` (audio: ${audioOrder})` : '';
+  document.getElementById('orderInfo').textContent =
+    `Order: ${filterOrder}${graphNote} · ${typeLabel} · Q = ${globalQ.toFixed(3)}`;
+  document.getElementById('legendLabel').textContent =
+    `ORDER: ${filterOrder} · ${typeLabel.toUpperCase()}`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  Q FACTOR
+// ══════════════════════════════════════════════════════════════════════
+function onQSlider(el) {
+  globalQ = parseFloat(el.value);
+  document.getElementById('vQ').textContent = globalQ.toFixed(3);
+  updateOrderInfo();
+  if (ac) applyNodeParams(realStageCount());
+  scheduleFreqDraw();
+}
+function setQPreset(q) {
+  globalQ = q;
+  document.getElementById('sQ').value = q;
+  document.getElementById('vQ').textContent = q.toFixed(3);
+  updateOrderInfo();
+  if (ac) applyNodeParams(realStageCount());
+  scheduleFreqDraw();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  CUTOFF SLIDER HANDLERS
+// ══════════════════════════════════════════════════════════════════════
+function hz(v){ return v>=1000 ? (v/1000).toFixed(v>=10000?1:2)+' kHz' : Math.round(v)+' Hz'; }
+function dbToLin(d){ return Math.pow(10,d/20); }
+function db_(v){ return (v>=0?'+':'')+parseFloat(v).toFixed(1)+' dB'; }
+
+function onSlider(which, el) {
+  const v = sliderToHz(parseFloat(el.value));
+  const warn = document.getElementById('bpfWarn');
+
+  if (which==='lpf')   { P.lpf=v;   document.getElementById('vLpf').textContent=hz(v); }
+  if (which==='hpf')   { P.hpf=v;   document.getElementById('vHpf').textContent=hz(v); }
+
+  if (which==='bpflo') {
+    P.bpfLo = v;
+    document.getElementById('vBpfLo').textContent = hz(v);
+    if (P.bpfLo >= P.bpfHi) {
+      P.bpfHi = Math.min(FMAX, P.bpfLo + 10);
+      const newSlider = hzToSlider(P.bpfHi);
+      document.getElementById('sBpfHi').value = newSlider;
+      document.getElementById('vBpfHi').textContent = hz(P.bpfHi);
+    }
+    warn.style.display = 'none';
+  }
+  if (which==='bpfhi') {
+    if (v <= P.bpfLo) {
+      warn.style.display = 'block';
+      const fixed = P.bpfLo + 10;
+      el.value = hzToSlider(fixed);
+      P.bpfHi = fixed;
+      document.getElementById('vBpfHi').textContent = hz(fixed);
+    } else {
+      warn.style.display = 'none';
+      P.bpfHi = v;
+      document.getElementById('vBpfHi').textContent = hz(v);
+    }
+  }
+
+  if (ac) applyNodeParams(realStageCount());
+  scheduleFreqDraw();
+  updateInfo();
+}
+
+function onGain(which, el) {
+  const db=parseFloat(el.value), lin=dbToLin(db);
+  if(which==='orig'){P.gOrig=lin;document.getElementById('vGOrig').textContent=db_(db);}
+  if(which==='lpf') {P.gLpf=lin; document.getElementById('vGLpf').textContent=db_(db);}
+  if(which==='bpf') {P.gBpf=lin; document.getElementById('vGBpf').textContent=db_(db);}
+  if(which==='hpf') {P.gHpf=lin; document.getElementById('vGHpf').textContent=db_(db);}
+  if (ac) applyNodeParams(realStageCount());
+}
+
+function toggleVis(k,btn){ vis[k]=!vis[k]; btn.classList.toggle('on',vis[k]); }
+
+function resetAll() {
+  filterType='butter'; filterOrder=2; globalQ=0.7071;
+  ['butter','cheby1','cheby2','bessel'].forEach(t=>document.getElementById('ft-'+t).classList.toggle('active',t==='butter'));
+  document.getElementById('orderInput').value=2;
+  document.getElementById('sQ').value=0.7071;
+  document.getElementById('vQ').textContent='0.707';
+  document.getElementById('perfWarn').classList.remove('show');
+
+  const DEF={lpf:600,bpfLo:800,bpfHi:2400,hpf:3500,gOrig:0,gLpf:0,gBpf:0,gHpf:0};
+  document.getElementById('sLpf').value=hzToSlider(DEF.lpf);
+  document.getElementById('sBpfLo').value=hzToSlider(DEF.bpfLo);
+  document.getElementById('sBpfHi').value=hzToSlider(DEF.bpfHi);
+  document.getElementById('sHpf').value=hzToSlider(DEF.hpf);
+  document.getElementById('vLpf').textContent=hz(DEF.lpf);
+  document.getElementById('vBpfLo').textContent=hz(DEF.bpfLo);
+  document.getElementById('vBpfHi').textContent=hz(DEF.bpfHi);
+  document.getElementById('vHpf').textContent=hz(DEF.hpf);
+  P.lpf=DEF.lpf;P.bpfLo=DEF.bpfLo;P.bpfHi=DEF.bpfHi;P.hpf=DEF.hpf;
+
+  document.getElementById('sGOrig').value=DEF.gOrig; document.getElementById('sGLpf').value=DEF.gLpf;
+  document.getElementById('sGBpf').value=DEF.gBpf;   document.getElementById('sGHpf').value=DEF.gHpf;
+  document.getElementById('vGOrig').textContent=db_(DEF.gOrig);document.getElementById('vGLpf').textContent=db_(DEF.gLpf);
+  document.getElementById('vGBpf').textContent=db_(DEF.gBpf);  document.getElementById('vGHpf').textContent=db_(DEF.gHpf);
+  P.gOrig=dbToLin(DEF.gOrig);P.gLpf=dbToLin(DEF.gLpf);P.gBpf=dbToLin(DEF.gBpf);P.gHpf=dbToLin(DEF.gHpf);
+  ['orig','lpf','bpf','hpf','mix'].forEach(k=>{vis[k]=true;const b=document.getElementById('vb-'+k);if(b)b.classList.add('on');});
+  document.getElementById('bpfWarn').style.display='none';
+  updateOrderInfo();
+  if(ac){buildChains();}
+  scheduleFreqDraw();
+}
+
+function updateInfo() {
+  if (!audioBuf) return;
+  document.getElementById('infoBox').innerHTML =
+    `Fs: ${audioBuf.sampleRate} Hz &nbsp;|&nbsp; Duration: ${fmt(audioBuf.duration)}<br>` +
+    `LPF &lt; ${hz(P.lpf)}<br>BPF ${hz(P.bpfLo)} – ${hz(P.bpfHi)}<br>HPF &gt; ${hz(P.hpf)}`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  ★ FREQUENCY RESPONSE GRAPH — Dynamic X-axis up to Fs/2
+//
+//  KEY CHANGE: fMax is now getNyquist() instead of hardcoded 22050.
+//  The tick labels are also generated dynamically so they always fit
+//  sensibly within whatever Nyquist limit the loaded file has.
+// ══════════════════════════════════════════════════════════════════════
+function drawFreqResponse() {
+  const canvas = document.getElementById('freqCanvas');
+  const W=canvas.width, H=canvas.height;
+  const c=canvas.getContext('2d');
+  c.clearRect(0,0,W,H); c.fillStyle='#060910'; c.fillRect(0,0,W,H);
+
+  const pad={l:46,r:14,t:12,b:30};
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  const fMin=20;
+  // ★ Dynamic Nyquist — updates whenever a new file is loaded
+  const fMax = getNyquist();
+  const dbMin=-80, dbMax=10;
+
+  function xOf(f){ return pad.l+(Math.log10(f/fMin)/Math.log10(fMax/fMin))*pw; }
+  function yOf(db){ return pad.t+(1-(db-dbMin)/(dbMax-dbMin))*ph; }
+
+  // Grid lines
+  c.strokeStyle='#111a28'; c.lineWidth=1;
+  [-70,-60,-50,-40,-30,-20,-10,-3,0].forEach(db=>{
+    c.beginPath();c.moveTo(pad.l,yOf(db));c.lineTo(pad.l+pw,yOf(db));c.stroke();
+  });
+
+  // ★ Dynamic frequency grid ticks — pick sensible ticks up to fMax
+  const allFreqTicks = [20,30,50,100,200,300,500,1000,2000,3000,5000,10000,15000,20000,25000,30000,40000,48000,50000,96000];
+  allFreqTicks.filter(f => f <= fMax).forEach(f=>{
+    const x=xOf(f);c.beginPath();c.moveTo(x,pad.t);c.lineTo(x,pad.t+ph);c.stroke();
+  });
+
+  // -3dB dashed reference
+  c.strokeStyle='#2a3a50'; c.lineWidth=1; c.setLineDash([4,4]);
+  c.beginPath();c.moveTo(pad.l,yOf(-3));c.lineTo(pad.l+pw,yOf(-3));c.stroke();
+  c.setLineDash([]);
+
+  const fs = Math.round(10*W/900);
+  c.fillStyle='#3a5070'; c.font=`${Math.max(8,fs)}px Share Tech Mono,monospace`;
+
+  // Y-axis labels
+  c.textAlign='right'; c.textBaseline='middle';
+  [-60,-40,-20,-10,-3,0].forEach(db=>c.fillText(db,pad.l-4,yOf(db)));
+
+  // ★ Dynamic X-axis labels — evenly spaced, max ~7 labels, skip those beyond fMax
+  // Choose label set based on Nyquist range
+  let xLabels;
+  if (fMax <= 6000)       xLabels = [20, 100, 500, 1000, 2000, 5000];
+  else if (fMax <= 12000) xLabels = [20, 100, 500, 1000, 5000, 10000];
+  else if (fMax <= 26000) xLabels = [20, 100, 500, 1000, 5000, 10000, 20000];
+  else if (fMax <= 52000) xLabels = [20, 100, 500, 1000, 5000, 10000, 25000, 48000];
+  else                    xLabels = [20, 100, 500, 1000, 5000, 10000, 20000, 50000, 96000];
+  // Always add fMax itself as the last label
+  if (!xLabels.includes(Math.round(fMax))) xLabels.push(Math.round(fMax));
+
+  c.textAlign='center'; c.textBaseline='top';
+  xLabels.filter(f => f <= fMax).forEach(f=>{
+    const lbl = f >= 1000 ? (f/1000) + 'k' : String(f);
+    c.fillText(lbl, xOf(f), pad.t+ph+4);
+  });
+
+  c.fillStyle='#2a4060'; c.textAlign='left'; c.textBaseline='middle';
+  c.fillText('dB',2,pad.t+4);
+  c.fillText('Hz',pad.l+pw/2,pad.t+ph+16);
+
+  // ★ Draw Nyquist limit marker line at fMax
+  c.strokeStyle='rgba(188,140,255,0.25)'; c.lineWidth=1; c.setLineDash([2,5]);
+  c.beginPath();c.moveTo(pad.l+pw,pad.t);c.lineTo(pad.l+pw,pad.t+ph);c.stroke();
+  c.setLineDash([]);
+  // Label the Nyquist limit
+  c.fillStyle='rgba(188,140,255,0.5)'; c.font='8px Share Tech Mono,monospace';
+  c.textAlign='right'; c.textBaseline='top';
+  const nyqLbl = fMax >= 1000 ? (fMax/1000).toFixed(fMax%1000===0?0:1)+'k' : fMax+'Hz';
+  c.fillText('Fs/2='+nyqLbl, pad.l+pw-2, pad.t+2);
+
+  const BINS = 800;
+  const n = filterOrder;
+  const type = filterType;
+
+  function drawIdealCurve(magFn, color) {
+    c.beginPath();
+    let first=true;
+    for (let i=0;i<BINS;i++) {
+      const f = fMin * Math.pow(fMax/fMin, i/(BINS-1));
+      const mag = magFn(f);
+      const db  = 20*Math.log10(Math.max(mag,1e-7));
+      const x=xOf(f), y=yOf(Math.max(dbMin,Math.min(dbMax,db)));
+      if(first){c.moveTo(x,y);first=false;}else c.lineTo(x,y);
+    }
+    c.strokeStyle=color; c.lineWidth=2.5; c.stroke();
+  }
+
+  drawIdealCurve(f => idealLPmag(f, P.lpf, n, type), '#3fb950');
+  const lx=xOf(P.lpf);
+  if(lx>=pad.l&&lx<=pad.l+pw){c.strokeStyle='#3fb95066';c.lineWidth=1;c.setLineDash([3,4]);c.beginPath();c.moveTo(lx,pad.t);c.lineTo(lx,pad.t+ph);c.stroke();c.setLineDash([]);}
+
+  if (P.bpfLo < P.bpfHi) {
+    drawIdealCurve(f => idealBPmag(f, P.bpfLo, P.bpfHi, n, type), '#f0883e');
+    [P.bpfLo,P.bpfHi].forEach(f=>{
+      const x=xOf(f);
+      if(x>=pad.l&&x<=pad.l+pw){c.strokeStyle='#f0883e66';c.lineWidth=1;c.setLineDash([3,4]);c.beginPath();c.moveTo(x,pad.t);c.lineTo(x,pad.t+ph);c.stroke();c.setLineDash([]);}
+    });
+  }
+
+  drawIdealCurve(f => idealHPmag(f, P.hpf, n, type), '#f85149');
+  const hx=xOf(P.hpf);
+  if(hx>=pad.l&&hx<=pad.l+pw){c.strokeStyle='#f8514966';c.lineWidth=1;c.setLineDash([3,4]);c.beginPath();c.moveTo(hx,pad.t);c.lineTo(hx,pad.t+ph);c.stroke();c.setLineDash([]);}
+
+  c.fillStyle='#3fb950'; c.font='9px Share Tech Mono,monospace'; c.textAlign='center'; c.textBaseline='bottom';
+  if(lx>=pad.l&&lx<=pad.l+pw) c.fillText(hz(P.lpf),lx,pad.t-1);
+  if(P.bpfLo<P.bpfHi){
+    const bx1=xOf(P.bpfLo),bx2=xOf(P.bpfHi);
+    c.fillStyle='#f0883e';
+    if(bx1>=pad.l&&bx1<=pad.l+pw) c.fillText(hz(P.bpfLo),bx1,pad.t-1);
+    if(bx2>=pad.l&&bx2<=pad.l+pw) c.fillText(hz(P.bpfHi),bx2,pad.t-1);
+  }
+  c.fillStyle='#f85149';
+  if(hx>=pad.l&&hx<=pad.l+pw) c.fillText(hz(P.hpf),hx,pad.t-1);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  WAVEFORM + SPECTRUM
+// ══════════════════════════════════════════════════════════════════════
+function drawWaveform() {
+  const canvas=document.getElementById('waveCanvas');
+  const W=canvas.width,H=canvas.height;
+  const c=canvas.getContext('2d');
+  c.fillStyle='#060910';c.fillRect(0,0,W,H);
+  const mid=H/2;
+  c.strokeStyle='#111a28';c.lineWidth=1;c.beginPath();c.moveTo(0,mid);c.lineTo(W,mid);c.stroke();
+  if(!anlOrig) return;
+  const N=anlOrig.frequencyBinCount, buf=new Float32Array(N);
+  function trace(anl,color,alpha,lw){
+    anl.getFloatTimeDomainData(buf);
+    c.strokeStyle=color;c.globalAlpha=alpha;c.lineWidth=lw;c.beginPath();
+    for(let i=0;i<N;i++){const x=(i/N)*W,y=mid-buf[i]*mid*0.9;i===0?c.moveTo(x,y):c.lineTo(x,y);}
+    c.stroke();c.globalAlpha=1;
+  }
+  if(vis.orig) trace(anlOrig,'#4fa3e8',0.35,1);
+  if(vis.lpf)  trace(anlLPF, '#3fb950',0.85,1.5);
+  if(vis.bpf)  trace(anlBPF, '#f0883e',0.85,1.5);
+  if(vis.hpf)  trace(anlHPF, '#f85149',0.85,1.5);
+  if(vis.mix)  trace(anlMix, '#e3b341',0.9,2);
+}
+
+function drawSpectrum() {
+  const canvas=document.getElementById('specCanvas');
+  const W=canvas.width,H=canvas.height;
+  const c=canvas.getContext('2d');
+  c.fillStyle='#060910';c.fillRect(0,0,W,H);
+  if(!anlMix) return;
+  const pad={l:34,r:6,t:7,b:22};
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  const nyq=ac.sampleRate/2, fMin=20, fMax=nyq, dbMin=-80, dbMax=10;
+  function xOf(f){return pad.l+(Math.log10(f/fMin)/Math.log10(fMax/fMin))*pw;}
+  function yOf(db){return pad.t+(1-(db-dbMin)/(dbMax-dbMin))*ph;}
+  c.strokeStyle='#111a28';c.lineWidth=0.5;
+  [20,50,100,200,500,1000,2000,5000,10000,20000,48000].filter(f=>f<=nyq).forEach(f=>{c.beginPath();c.moveTo(xOf(f),pad.t);c.lineTo(xOf(f),pad.t+ph);c.stroke();});
+  [-60,-40,-20,-10,0].forEach(db=>{c.beginPath();c.moveTo(pad.l,yOf(db));c.lineTo(pad.l+pw,yOf(db));c.stroke();});
+  c.fillStyle='#3a5070';c.font='8px Share Tech Mono,monospace';
+  c.textAlign='right';c.textBaseline='middle';
+  [-60,-40,-20,0].forEach(db=>c.fillText(db,pad.l-3,yOf(db)));
+  c.textAlign='center';c.textBaseline='top';
+  [100,500,1000,5000,10000].filter(f=>f<=nyq).forEach(f=>{c.fillText(f>=1000?f/1000+'k':f,xOf(f),pad.t+ph+3);});
+  const N=anlMix.frequencyBinCount;
+  const origBuf=new Uint8Array(N), mixBuf=new Uint8Array(N);
+  anlOrig.getByteFrequencyData(origBuf); anlMix.getByteFrequencyData(mixBuf);
+  function curve(data,color,fill){
+    c.beginPath();
+    for(let i=1;i<N;i++){
+      const f=i*nyq/N; if(f<fMin||f>fMax)continue;
+      const db=(data[i]/255)*(dbMax-dbMin)+dbMin;
+      const x=xOf(f),y=yOf(Math.max(dbMin,Math.min(dbMax,db)));
+      i===1?c.moveTo(x,y):c.lineTo(x,y);
+    }
+    if(fill){c.lineTo(xOf(fMax),pad.t+ph);c.lineTo(xOf(fMin),pad.t+ph);c.closePath();c.fillStyle=color+'22';c.fill();}
+    c.strokeStyle=color;c.lineWidth=1.5;c.stroke();
+  }
+  if(vis.orig) curve(origBuf,'#4fa3e8',true);
+  if(vis.mix)  curve(mixBuf,'#e3b341',false);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  PLAYBACK
+// ══════════════════════════════════════════════════════════════════════
+function togglePlay(){ensureAC();if(!audioBuf){setStatus('LOAD A FILE FIRST');return;}isPlaying?pauseAudio():playAudio();}
+function playAudio(off){
+  if(off===undefined)off=startOff;
+  if(srcNode){try{srcNode.stop()}catch(e){}srcNode.disconnect();srcNode=null;}
+  srcNode=ac.createBufferSource();srcNode.buffer=audioBuf;connectSrc(srcNode);srcNode.start(0,off);
+  startT=ac.currentTime;startOff=off;isPlaying=true;
+  srcNode.onended=()=>{if(isPlaying){isPlaying=false;startOff=0;updatePlayBtn();updateProgress(0);setStatus('FINISHED');}};
+  updatePlayBtn();setStatus('PLAYING');if(!rafId)rafId=requestAnimationFrame(animLoop);
+}
+function pauseAudio(){startOff=getCurT();if(srcNode){try{srcNode.stop()}catch(e){}srcNode.disconnect();srcNode=null;}isPlaying=false;updatePlayBtn();setStatus('PAUSED');}
+function stopAudio(){if(srcNode){try{srcNode.stop()}catch(e){}srcNode.disconnect();srcNode=null;}isPlaying=false;startOff=0;updatePlayBtn();updateProgress(0);setStatus(audioBuf?'STOPPED':'READY');}
+function skip(s){const t=Math.max(0,Math.min(getCurT()+s,audioBuf?audioBuf.duration:0));isPlaying?playAudio(t):(startOff=t,updateProgress(t));}
+function getCurT(){if(!isPlaying||!ac)return startOff;return Math.min(startOff+(ac.currentTime-startT),audioBuf?audioBuf.duration:0);}
+function seekTo(t){const was=isPlaying;if(srcNode){try{srcNode.stop()}catch(e){}srcNode.disconnect();srcNode=null;}isPlaying=false;startOff=t;if(was)playAudio(t);else updateProgress(t);}
+function updatePlayBtn(){const b=document.getElementById('playBtn');if(isPlaying){b.textContent='⏸ PAUSE';b.classList.add('playing');}else{b.textContent='▶ PLAY';b.classList.remove('playing');}}
+
+// ══════════════════════════════════════════════════════════════════════
+//  FILE LOADING  — ★ updateFsBadge() called after decode
+// ══════════════════════════════════════════════════════════════════════
+async function handleFile(file){
+  if(!file)return; ensureAC(); setStatus('LOADING...');
+  try{
+    const ab=await file.arrayBuffer(); audioBuf=await ac.decodeAudioData(ab);
+    buildWave();drawOverview();
+    // ★ Update Nyquist badge + redraw freq graph with correct Fs/2 range
+    updateFsBadge();
+    scheduleFreqDraw();
+    document.getElementById('trackName').textContent=file.name.replace(/\.[^.]+$/,'')+' · '+fmt(audioBuf.duration)+' · '+(audioBuf.sampleRate/1000).toFixed(1)+' kHz';
+    startOff=0;updateProgress(0);updateInfo();setStatus('LOADED — PRESS PLAY');
+  }catch(e){setStatus('ERROR: '+e.message.slice(0,60));}
+}
+
+function loadDemo(){
+  ensureAC();setStatus('GENERATING DEMO...');
+  const Fs=44100,dur=10,N=Fs*dur,buf=ac.createBuffer(1,N,Fs),ch=buf.getChannelData(0);
+  for(let i=0;i<N;i++){
+    const t=i/Fs;
+    ch[i]=(Math.sin(2*Math.PI*200*t)+0.7*Math.sin(2*Math.PI*800*t)+
+           0.5*Math.sin(2*Math.PI*1500*t)+0.5*Math.sin(2*Math.PI*3500*t)+
+           0.3*Math.sin(2*Math.PI*7000*t)+0.15*(Math.random()*2-1))*0.5;
+  }
+  audioBuf=buf; buildWave();drawOverview();
+  // ★ Update Nyquist badge + redraw freq graph
+  updateFsBadge();
+  scheduleFreqDraw();
+  document.getElementById('trackName').textContent='DEMO: 200Hz+800Hz+1.5kHz+3.5kHz+7kHz+noise · 10s · 44.1 kHz';
+  startOff=0;updateProgress(0);updateInfo();setStatus('DEMO LOADED — PRESS PLAY');
+}
+
+function buildWave(){
+  const ch=audioBuf.getChannelData(0),bins=1400,step=Math.floor(ch.length/bins);
+  waveData=new Float32Array(bins);
+  for(let i=0;i<bins;i++){let pk=0;for(let j=0;j<step;j++){const v=Math.abs(ch[i*step+j]||0);if(v>pk)pk=v;}waveData[i]=pk;}
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  OVERVIEW + PROGRESS
+// ══════════════════════════════════════════════════════════════════════
+function drawOverview(){
+  const canvas=document.getElementById('overviewCanvas'),W=canvas.width,H=canvas.height;
+  const c=canvas.getContext('2d');c.fillStyle='#060910';c.fillRect(0,0,W,H);
+  if(!waveData){c.strokeStyle='#1a2540';c.lineWidth=1;c.beginPath();c.moveTo(0,H/2);c.lineTo(W,H/2);c.stroke();return;}
+  const pos=audioBuf?getCurT()/audioBuf.duration:0, posX=pos*W, bins=waveData.length;
+  for(let i=0;i<bins;i++){
+    const x=(i/bins)*W,bw=Math.max(1,(W/bins)-0.4),h=waveData[i]*(H-4);
+    c.fillStyle=x<posX?'#4fa3e8':'#1a2540';c.fillRect(x,(H-h)/2,bw,h);
+  }
+  if(posX>0){c.fillStyle='rgba(79,163,232,.06)';c.fillRect(0,0,posX,H);}
+  c.fillStyle='#fff';c.fillRect(posX-1,0,2,H);
+}
+
+function updateProgress(t){
+  if(!audioBuf)return;
+  const pct=Math.min(t/audioBuf.duration,1)*100;
+  document.getElementById('progFill').style.width=pct+'%';
+  document.getElementById('progHandle').style.left=pct+'%';
+  document.getElementById('timeLbl').textContent=fmt(t)+' / '+fmt(audioBuf.duration);
+}
+
+let progDragging=false;
+function progDown(e){if(!audioBuf)return;progDragging=true;progMove(e);document.addEventListener('mousemove',progMove);document.addEventListener('mouseup',()=>{progDragging=false;document.removeEventListener('mousemove',progMove);});}
+function progMove(e){if(!progDragging||!audioBuf)return;const r=document.getElementById('progTrack').getBoundingClientRect();seekTo(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*audioBuf.duration);}
+document.getElementById('overviewCanvas').addEventListener('click',e=>{if(!audioBuf)return;const r=e.currentTarget.getBoundingClientRect();seekTo(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*audioBuf.duration);});
+
+// ══════════════════════════════════════════════════════════════════════
+//  ANIMATION LOOP  — throttled to ~30fps
+// ══════════════════════════════════════════════════════════════════════
+let lastOvT=0, lastFrameTs=0;
+const FRAME_BUDGET = 33;
+
+function animLoop(ts){
+  rafId=null;
+  const dt = ts - lastFrameTs;
+  if (dt >= FRAME_BUDGET) {
+    lastFrameTs = ts;
+    drawWaveform();
+    drawSpectrum();
+    if(ts-lastOvT>100){lastOvT=ts;drawOverview();}
+    if(isPlaying&&audioBuf)updateProgress(getCurT());
+  }
+  if(isPlaying)rafId=requestAnimationFrame(animLoop);
+}
+
+setInterval(()=>{ if(!isPlaying){ drawSpectrum(); drawOverview(); } }, 200);
+
+// ══════════════════════════════════════════════════════════════════════
+//  CANVAS SIZING
+// ══════════════════════════════════════════════════════════════════════
+function sizeCanvas(id,hPx){
+  const el=document.getElementById(id);
+  const w=el.parentElement.clientWidth-24;
+  el.width=Math.round(w*devicePixelRatio); el.height=Math.round(hPx*devicePixelRatio);
+  el.style.width=w+'px'; el.style.height=hPx+'px';
+}
+function resizeAll(){
+  sizeCanvas('freqCanvas',230);sizeCanvas('waveCanvas',155);sizeCanvas('specCanvas',155);
+  const ov=document.getElementById('overviewCanvas');
+  const w=ov.parentElement.clientWidth-24;
+  ov.width=Math.round(w*devicePixelRatio);ov.height=Math.round(60*devicePixelRatio);
+  ov.style.width=w+'px';ov.style.height='60px';
+  scheduleFreqDraw();drawOverview();
+}
+window.addEventListener('resize',()=>setTimeout(resizeAll,100));
+setTimeout(resizeAll,150);
+
+// ══════════════════════════════════════════════════════════════════════
+//  DRAG & DROP + KEYBOARD
+// ══════════════════════════════════════════════════════════════════════
+const dov=document.getElementById('dropOv');
+document.addEventListener('dragover',e=>{e.preventDefault();dov.classList.add('show');});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)dov.classList.remove('show');});
+document.addEventListener('drop',e=>{e.preventDefault();dov.classList.remove('show');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.code==='Space'){e.preventDefault();togglePlay();}
+  if(e.code==='ArrowLeft')skip(-5);
+  if(e.code==='ArrowRight')skip(5);
+});
+
+// ══════════════════════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════════════════════
+function fmt(s){const m=Math.floor(s/60),ss=Math.floor(s%60);return m+':'+String(ss).padStart(2,'0');}
+function setStatus(t){document.getElementById('statusLbl').textContent=t;}
+
+// Init
+updateOrderInfo();
+updateFsBadge(); // ★ Initialize badge with default 22.05 kHz
+</script>
+</body>
+</html>
